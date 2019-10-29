@@ -1,16 +1,11 @@
 /*
-Things to possibly purse:
+1. Support for hexadecimal and octal number literals. (DONE)
 
-1. Should the stretchy buffer implementation offer easy iteration?
+2. Add hash map mainly for symbol lookup.
 
-2. Another we can iterate through an array is using pointers. Increment and then deference to get the next object.
-   No need to create a separate type for everything we need to loop over.
+3. Detect integer overflows.
 
-3. Error reporting for sure.
-
-4. Complete the lexer.
-
-5. Allow a forcible shutdown of the compilation purely for testing purposes in the error reporting system?
+4. Finalize the lexer.
 */
 
 #include <stdio.h>
@@ -59,7 +54,7 @@ typedef struct
     
     union
     {
-        int number;
+        unsigned int number;
         char name[32];
         char *string;
     };
@@ -101,12 +96,12 @@ Token *LexerRun(char *lexer)
             case ' ':
             case '\t':
             case '\n':
-                lexer++;
-                
-                if(c == '\n')
-                {
-                    current_line++;
-                }
+            lexer++;
+            
+            if(c == '\n')
+            {
+                current_line++;
+            }
             break;
             
             case '0':
@@ -120,19 +115,45 @@ Token *LexerRun(char *lexer)
             case '8':
             case '9':
             {
-            	int result = 0;
-            	while(isdigit(c))
+            	unsigned int result = 0;
+            	unsigned int base = 10;
+            	
+            	if(c == '0')
             	{
-                    result *= 10;
-                    result += c - '0';
-                    c = *++lexer;
+            	    base = 8;
+            	    c = *++lexer;
+            	    if(tolower(c) == 'x')
+            	    {
+            	        base = 16;
+            	    }
+            	}            	
+            	
+            	while(isalnum(c))
+            	{
+                    result *= base;
+                    unsigned int add_amount = 0;
                     
-                    if((result * 0.5) >= (INT_MAX * 0.5))
+                    if(isdigit(c))
                     {
-                        ReportError("[%d : %d] Number literal surpasses what is allowed!\nMax allowed: %d\n", current_line, current_column, INT_MAX);
+                        add_amount = c - '0';
                     }
+                    
+                    c = tolower(c);
+                    if(c >= 'a' && c <= 'f')
+                    {
+                        add_amount += (c - 'a') + 10;
+                    }
+                    
+                    if(result > UINT_MAX - add_amount)
+                    {
+                        ReportError("Integer literal overflow!\n");
+                    }
+                    
+                    result += add_amount;
+                    
+                    c = *++lexer;
                 }
-            
+                
                 current_token.number = result;
                 current_token.kind = TOKEN_NUMBER;
                 add_token = true;
@@ -220,11 +241,31 @@ Token *LexerRun(char *lexer)
             break;
             
             case '"':
-            
+            {
+                char *start = ++lexer;
+                char *end = start;
+                c = *lexer;
+                while(c != '"')
+                {
+                    end++;
+                    c = *++lexer;
+                }
+                
+                int new_string_length = (int)(end - start);
+                char *new_string = malloc(new_string_length + 1);
+                strncpy(new_string, start, new_string_length);
+                
+                current_token.string = new_string;
+                current_token.kind = TOKEN_STRING;
+                
+                lexer++;
+                
+                add_token = true;
+            }
             break;
             
             default:
-                ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
+            ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
             break;
         }
         
@@ -285,6 +326,36 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
+    
+    test_tokens = LexerRun("\"test string\" \"another test string\"");
+    old_test_tokens_pointer = test_tokens;
+    
+    TokenAssertString(test_tokens, "test string");
+    TokenAssertString(test_tokens, "another test string");
+    TokenAssertKind(test_tokens, TOKEN_EOF);
+    
+    BufferFree(old_test_tokens_pointer);
+    
+    test_tokens = LexerRun("01 02 03 0123 0567 0xa 0xb 0xc 0xff 0xabcdef 0xffffffff");
+    old_test_tokens_pointer = test_tokens;
+    
+    TokenAssertNumber(test_tokens, 01);
+    TokenAssertNumber(test_tokens, 02);
+    TokenAssertNumber(test_tokens, 03);
+    TokenAssertNumber(test_tokens, 0123);
+    TokenAssertNumber(test_tokens, 0567);
+    TokenAssertNumber(test_tokens, 0xa);
+    TokenAssertNumber(test_tokens, 0xb);
+    TokenAssertNumber(test_tokens, 0xc);
+    TokenAssertNumber(test_tokens, 0xff);
+    TokenAssertNumber(test_tokens, 0xabcdef);
+    TokenAssertNumber(test_tokens, 0xffffffff);
+    TokenAssertKind(test_tokens, TOKEN_EOF);
+    
+    BufferFree(old_test_tokens_pointer);
+    
+    //test_tokens = LexerRun("0xfffffffffffff");
+    //old_test_tokens_pointer = test_tokens;
 }
 
 void BufferTest(void)
