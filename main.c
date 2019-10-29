@@ -207,7 +207,7 @@ Token *LexerRun(char *lexer)
                 int token_kind = TOKEN_IF;
                 while(token_kind < TOKEN_EOF)
                 {
-                    if(strncmp(current_token.name, token_string_table[token_kind], strlen(current_token.name)))
+                    if(strncmp(current_token.name, token_string_table[token_kind], strlen(current_token.name)) == 0)
                     {
                         current_token.kind = token_kind;
                     }
