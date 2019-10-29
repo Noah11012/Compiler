@@ -192,7 +192,31 @@ Token *LexerRun(char *lexer)
             case 'Y':
             case 'Z':
             case '_':
-            
+            {
+                int index = 0;
+                while(isalnum(c) || c == '_')
+                {
+                    current_token.name[index] = c;
+                    index++;
+                    c = *++lexer;
+                }
+                
+                current_token.name[index] = 0;
+                current_token.kind = TOKEN_IDENTIFIER;
+                
+                int token_kind = TOKEN_IF;
+                while(token_kind < TOKEN_EOF)
+                {
+                    if(strncmp(current_token.name, token_string_table[token_kind], strlen(current_token.name)))
+                    {
+                        current_token.kind = token_kind;
+                    }
+                    
+                    token_kind++;
+                }
+                
+                add_token = true;
+            }
             break;
             
             case '"':
@@ -247,6 +271,17 @@ void LexerTest(void)
     TokenAssertNumber(test_tokens, 10);
     TokenAssertNumber(test_tokens, 20);
     TokenAssertNumber(test_tokens, 30);
+    TokenAssertKind(test_tokens, TOKEN_EOF);
+    
+    BufferFree(old_test_tokens_pointer);
+    
+    test_tokens = LexerRun("number a_string a_string_2 something123");
+    old_test_tokens_pointer = test_tokens;
+    
+    TokenAssertIdentifier(test_tokens, "number");
+    TokenAssertIdentifier(test_tokens, "a_string");
+    TokenAssertIdentifier(test_tokens, "a_string_2");
+    TokenAssertIdentifier(test_tokens, "something123");
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
