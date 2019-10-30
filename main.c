@@ -6,6 +6,8 @@
 3. Detect integer overflows.
 
 4. Finalize the lexer.
+
+5. Show the number when we overflow.
 */
 
 #include <stdio.h>
@@ -130,26 +132,29 @@ Token *LexerRun(char *lexer)
             	
             	while(isalnum(c))
             	{
-                    result *= base;
-                    unsigned int add_amount = 0;
-                    
+                    unsigned int digit = 0;
+                                        
+                    c = tolower(c);
                     if(isdigit(c))
                     {
-                        add_amount = c - '0';
-                    }
-                    
-                    c = tolower(c);
-                    if(c >= 'a' && c <= 'f')
+                        digit = c - '0';
+                    } else if(c >= 'a' && c <= 'f')
                     {
-                        add_amount += (c - 'a') + 10;
+                        digit += (c - 'a') + 10;
                     }
                     
-                    if(result > UINT_MAX - add_amount)
+                    if(digit > base)
                     {
-                        ReportError("Integer literal overflow!\n");
+                        ReportError("Invalid digit in base!\nBase = %u\n", base);
                     }
                     
-                    result += add_amount;
+                    if(result >= ((UINT_MAX - digit) / base))
+                    {
+                        ReportError("Integer overflow!\n");
+                    }
+                                        
+                    result *= base;
+                    result += digit;
                     
                     c = *++lexer;
                 }
@@ -336,7 +341,7 @@ void LexerTest(void)
     
     BufferFree(old_test_tokens_pointer);
     
-    test_tokens = LexerRun("01 02 03 0123 0567 0xa 0xb 0xc 0xff 0xabcdef 0xffffffff");
+    test_tokens = LexerRun("01 02 03 0123 0567 0xa 0xb 0xc 0xff 0xabcdef 0x7fffffff");
     old_test_tokens_pointer = test_tokens;
     
     TokenAssertNumber(test_tokens, 01);
@@ -349,7 +354,7 @@ void LexerTest(void)
     TokenAssertNumber(test_tokens, 0xc);
     TokenAssertNumber(test_tokens, 0xff);
     TokenAssertNumber(test_tokens, 0xabcdef);
-    TokenAssertNumber(test_tokens, 0xffffffff);
+    TokenAssertNumber(test_tokens, 0x7fffffff);
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
