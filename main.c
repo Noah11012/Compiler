@@ -18,11 +18,13 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+/* Assert macro */
 #define Assert(condition) if((condition) == false) \
 { fprintf(stderr, "Assertion failed!\nCondtion: %s\nFile: %s\nLine:%d\n", #condition, __FILE__, __LINE__); } 0\
 
 #include "buffer.c"
 
+/* Token Types */
 typedef enum
 {
     TOKEN_NUMBER,
@@ -36,6 +38,7 @@ typedef enum
     TOKEN_EOF
 } TokenKind;
 
+/* Used for error reporting mainly. Allows for easy conversion from TokenKind to string */
 static char const *token_string_table[] = {
     [TOKEN_NUMBER] = "number",
     [TOKEN_IDENTIFIER] = "identifier",
@@ -48,6 +51,7 @@ static char const *token_string_table[] = {
     [TOKEN_EOF] = "End of file"
 };
 
+/* Holds all the information about a token */
 typedef struct
 {
     TokenKind kind;
@@ -56,15 +60,16 @@ typedef struct
     
     union
     {
-        unsigned int number;
-        char name[32];
-        char *string;
+        unsigned int number; // Used only when kind == TOKEN_NUMBER
+        char name[32]; // Used only when kind == TOKEN_IDENTIFIER
+        char *string; // Used only when kind == TOKEN_STRING
     };
 } Token;
 
 static int errors_reported = 0;
 static int max_allowed_errors = 20;
 
+/* Our basic way of reporting errors */
 void ReportError(char const *format, ...)
 {
     if(errors_reported >= max_allowed_errors)
@@ -293,6 +298,7 @@ Token *LexerRun(char *lexer)
     return list_of_tokens;
 }
 
+/* Macros used for lexing testing */
 #define TokenAssertIdentifier(tokens, string) \
 Assert(strncmp(tokens->name, string, strlen(tokens->name)) == 0); tokens++ \
 
