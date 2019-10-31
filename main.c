@@ -1,15 +1,3 @@
-/*
-1. Support for hexadecimal and octal number literals. (DONE)
-
-2. Add hash map mainly for symbol lookup.
-
-3. Detect integer overflows.
-
-4. Finalize the lexer.
-
-5. Show the number when we overflow.
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -60,14 +48,48 @@ typedef enum
     TOKEN_RIGHT_SHIFT_ASSIGNMENT,
     
     TOKEN_COMMA,
+    TOKEN_COLON,
     TOKEN_SEMICOLON,
+    TOKEN_QUESTION_MARK,
+    TOKEN_EXCLAMATION_POINT,
     
     TOKEN_IF,
+    TOKEN_ELSE,
     TOKEN_WHILE,
     TOKEN_FOR,
     TOKEN_RETURN,
     TOKEN_SWITCH,
     TOKEN_BREAK,
+    TOKEN_CASE,
+    TOKEN_DO,
+    TOKEN_TYPEDEF,
+    TOKEN_CONTINUE,
+    TOKEN_GOTO,
+    TOKEN_STRUCT,
+    TOKEN_UNION,
+    TOKEN_ENUM,
+    TOKEN_CHAR,
+    TOKEN_SHORT,
+    TOKEN_INT,
+    TOKEN_LONG,
+    TOKEN_FLOAT,
+    TOKEN_DOUBLE,
+    TOKEN_SIGNED,
+    TOKEN_UNSIGNED,
+    TOKEN_REGISTER,
+    TOKEN_RESTRICT,
+    TOKEN_VOLATILE,
+    TOKEN_SIZEOF,
+    TOKEN_INLINE,
+    TOKEN_STATIC,
+    TOKEN_EXTERN,
+    TOKEN_AUTO,
+    TOKEN_CONST,
+
+    /* C11 Specific */
+    TOKEN_BOOL,
+    TOKEN_GENERIC,
+    TOKEN_ALIGNOF,
     
     TOKEN_EOF
 } TokenKind;
@@ -79,11 +101,41 @@ static char const *token_string_table[] = {
     [TOKEN_STRING] = "string",
     
     [TOKEN_IF] = "if",
+    [TOKEN_ELSE] = "else",
     [TOKEN_WHILE] = "while",
     [TOKEN_FOR] = "for",
     [TOKEN_RETURN] = "return",
     [TOKEN_SWITCH] = "switch",
     [TOKEN_BREAK] = "break",
+    [TOKEN_CASE] = "case",
+    [TOKEN_DO] = "do",
+    [TOKEN_TYPEDEF] = "typedef",
+    [TOKEN_CONTINUE] = "continue",
+    [TOKEN_GOTO] = "goto",
+    [TOKEN_STRUCT] = "struct",
+    [TOKEN_UNION] = "union",
+    [TOKEN_ENUM] = "enum",
+    [TOKEN_CHAR] = "char",
+    [TOKEN_SHORT] = "short",
+    [TOKEN_INT] = "int",
+    [TOKEN_LONG] = "long",
+    [TOKEN_FLOAT] = "float",
+    [TOKEN_DOUBLE] = "double",
+    [TOKEN_SIGNED] = "signed",
+    [TOKEN_UNSIGNED] = "unsigned",
+    [TOKEN_REGISTER] = "register",
+    [TOKEN_RESTRICT] = "restrict",
+    [TOKEN_VOLATILE] = "volatile",
+    [TOKEN_SIZEOF] = "sizeof",
+    [TOKEN_INLINE] = "inline",
+    [TOKEN_STATIC] = "static",
+    [TOKEN_EXTERN] = "extern",
+    [TOKEN_AUTO] = "auto",
+    [TOKEN_CONST] = "const",
+
+    [TOKEN_BOOL] = "_Bool",
+    [TOKEN_GENERIC] = "_Generic",
+    [TOKEN_ALIGNOF] = "_Alignof",
     
     [TOKEN_EOF] = "End of file"
 };
@@ -315,11 +367,13 @@ Token *LexerRun(char *lexer)
                 current_token.kind = TOKEN_IDENTIFIER;
                 
                 int token_kind = TOKEN_IF;
-                while(token_kind < TOKEN_EOF)
+                bool found_keyword = false;
+                while((token_kind < TOKEN_EOF) && !found_keyword)
                 {
                     if(strncmp(current_token.name, token_string_table[token_kind], strlen(current_token.name)) == 0)
                     {
                         current_token.kind = token_kind;
+                        found_keyword = true;
                     }
                     
                     token_kind++;
@@ -366,7 +420,10 @@ Token *LexerRun(char *lexer)
             TOKEN_CASE3('<', '<', '=', TOKEN_LESS_THAN, TOKEN_BITWISE_LEFT_SHIFT, TOKEN_LEFT_SHIFT_ASSIGNMENT);
             TOKEN_CASE3('>', '>', '=', TOKEN_GREATER_THAN, TOKEN_BITWISE_RIGHT_SHIFT, TOKEN_RIGHT_SHIFT_ASSIGNMENT);
             TOKEN_CASE1(',', TOKEN_COMMA);
+            TOKEN_CASE1(':', TOKEN_COLON);
             TOKEN_CASE1(';', TOKEN_SEMICOLON);
+            TOKEN_CASE1('?', TOKEN_QUESTION_MARK);
+            TOKEN_CASE1('!', TOKEN_EXCLAMATION_POINT);
             
             default:
             ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
@@ -462,7 +519,7 @@ void LexerTest(void)
     //test_tokens = LexerRun("0xfffffffffffff");
     //old_test_tokens_pointer = test_tokens;
     
-    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^<<>>,; = == <<=>>=");
+    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^<<>>,;:?! = == <<=>>=");
     old_test_tokens_pointer = test_tokens;
     
     TokenAssertKind(test_tokens, TOKEN_PLUS);
@@ -486,6 +543,9 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_BITWISE_RIGHT_SHIFT);
     TokenAssertKind(test_tokens, TOKEN_COMMA);
     TokenAssertKind(test_tokens, TOKEN_SEMICOLON);
+    TokenAssertKind(test_tokens, TOKEN_COLON);
+    TokenAssertKind(test_tokens, TOKEN_QUESTION_MARK);
+    TokenAssertKind(test_tokens, TOKEN_EXCLAMATION_POINT);
     TokenAssertKind(test_tokens, TOKEN_EQUAL);
     TokenAssertKind(test_tokens, TOKEN_DOUBLE_EQUALS);
     TokenAssertKind(test_tokens, TOKEN_LEFT_SHIFT_ASSIGNMENT);
@@ -493,6 +553,43 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
+
+    test_tokens = LexerRun("do while for if else switch case break typedef return struct enum union "
+                           "char short int long float double signed unsigned "
+                           "auto static extern register inline const "
+                           "sizeof _Bool _Generic _Alignof");
+    old_test_tokens_pointer = test_tokens;
+    TokenAssertKind(test_tokens, TOKEN_DO);
+    TokenAssertKind(test_tokens, TOKEN_WHILE);
+    TokenAssertKind(test_tokens, TOKEN_FOR);
+    TokenAssertKind(test_tokens, TOKEN_IF);
+    TokenAssertKind(test_tokens, TOKEN_ELSE);
+    TokenAssertKind(test_tokens, TOKEN_SWITCH);
+    TokenAssertKind(test_tokens, TOKEN_CASE);
+    TokenAssertKind(test_tokens, TOKEN_BREAK);
+    TokenAssertKind(test_tokens, TOKEN_TYPEDEF);
+    TokenAssertKind(test_tokens, TOKEN_RETURN);
+    TokenAssertKind(test_tokens, TOKEN_STRUCT);
+    TokenAssertKind(test_tokens, TOKEN_ENUM);
+    TokenAssertKind(test_tokens, TOKEN_UNION);
+    TokenAssertKind(test_tokens, TOKEN_CHAR);
+    TokenAssertKind(test_tokens, TOKEN_SHORT);
+    TokenAssertKind(test_tokens, TOKEN_INT);
+    TokenAssertKind(test_tokens, TOKEN_LONG);
+    TokenAssertKind(test_tokens, TOKEN_FLOAT);
+    TokenAssertKind(test_tokens, TOKEN_DOUBLE);
+    TokenAssertKind(test_tokens, TOKEN_SIGNED);
+    TokenAssertKind(test_tokens, TOKEN_UNSIGNED);
+    TokenAssertKind(test_tokens, TOKEN_AUTO);
+    TokenAssertKind(test_tokens, TOKEN_STATIC);
+    TokenAssertKind(test_tokens, TOKEN_EXTERN);
+    TokenAssertKind(test_tokens, TOKEN_REGISTER);
+    TokenAssertKind(test_tokens, TOKEN_INLINE);
+    TokenAssertKind(test_tokens, TOKEN_CONST);
+    TokenAssertKind(test_tokens, TOKEN_SIZEOF);
+    TokenAssertKind(test_tokens, TOKEN_BOOL);
+    TokenAssertKind(test_tokens, TOKEN_GENERIC);
+    TokenAssertKind(test_tokens, TOKEN_ALIGNOF);
 }
 
 void BufferTest(void)
