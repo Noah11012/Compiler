@@ -31,9 +31,43 @@ typedef enum
     TOKEN_IDENTIFIER,
     TOKEN_STRING,
     
+    TOKEN_PLUS,
+    TOKEN_MINUS,
+    TOKEN_STAR,
+    TOKEN_SLASH,
+    TOKEN_PERCENT,
+    TOKEN_EQUAL,
+    TOKEN_DOUBLE_EQUALS,
+    
+    TOKEN_LESS_THAN,
+    TOKEN_GREATER_THAN,
+    
+    TOKEN_LOGICAL_OR,
+    TOKEN_LOGICAL_AND,
+    
+    TOKEN_BITWISE_OR,
+    TOKEN_BITWISE_AND,
+    TOKEN_BITWISE_XOR,
+    TOKEN_BITWISE_LEFT_SHIFT,
+    TOKEN_BITWISE_RIGHT_SHIFT,
+    
+    TOKEN_PLUS_ASSIGNMENT,
+    TOKEN_MINUS_ASSIGNMENT,
+    TOKEN_STAR_ASSIGNMENT,
+    TOKEN_SLASH_ASSIGNMENT,
+    TOKEN_PERCENT_ASSIGNMENT,
+    TOKEN_LEFT_SHIFT_ASSIGNMENT,
+    TOKEN_RIGHT_SHIFT_ASSIGNMENT,
+    
+    TOKEN_COMMA,
+    TOKEN_SEMICOLON,
+    
     TOKEN_IF,
     TOKEN_WHILE,
     TOKEN_FOR,
+    TOKEN_RETURN,
+    TOKEN_SWITCH,
+    TOKEN_BREAK,
     
     TOKEN_EOF
 } TokenKind;
@@ -47,6 +81,9 @@ static char const *token_string_table[] = {
     [TOKEN_IF] = "if",
     [TOKEN_WHILE] = "while",
     [TOKEN_FOR] = "for",
+    [TOKEN_RETURN] = "return",
+    [TOKEN_SWITCH] = "switch",
+    [TOKEN_BREAK] = "break",
     
     [TOKEN_EOF] = "End of file"
 };
@@ -85,6 +122,48 @@ void ReportError(char const *format, ...)
     
     errors_reported++;
 }
+
+#define TOKEN_CASE1(ch, token_kind) \
+case ch: \
+{ \
+    current_token.kind = token_kind; \
+    add_token = true; \
+    lexer++; \
+} \
+break \
+
+#define TOKEN_CASE2(ch, ch2, token_kind1, token_kind2) \
+case ch: \
+{ \
+    current_token.kind = token_kind1; \
+    c = *++lexer; \
+    if(c == ch2) \
+    { \
+        current_token.kind = token_kind2; \
+        lexer++; \
+    } \
+    add_token = true; \
+} \
+break \
+
+#define TOKEN_CASE3(ch, ch2, ch3, token_kind1, token_kind2, token_kind3) \
+case ch: \
+{ \
+    current_token.kind = token_kind1; \
+    c = *++lexer; \
+    if(c == ch2) \
+    { \
+        current_token.kind = token_kind2; \
+        c = *++lexer;\
+        if(c == ch3) \
+        { \
+            current_token.kind = token_kind3; \
+            lexer++; \
+        } \
+    } \
+    add_token = true; \
+} \
+break \
 
 Token *LexerRun(char *lexer)
 {
@@ -138,7 +217,7 @@ Token *LexerRun(char *lexer)
             	while(isalnum(c))
             	{
                     unsigned int digit = 0;
-                                        
+                    
                     c = tolower(c);
                     if(isdigit(c))
                     {
@@ -157,7 +236,7 @@ Token *LexerRun(char *lexer)
                     {
                         ReportError("Integer overflow!\n");
                     }
-                                        
+                    
                     result *= base;
                     result += digit;
                     
@@ -274,6 +353,21 @@ Token *LexerRun(char *lexer)
             }
             break;
             
+            TOKEN_CASE2('+', '=', TOKEN_PLUS, TOKEN_PLUS_ASSIGNMENT);
+            TOKEN_CASE2('-', '=', TOKEN_MINUS, TOKEN_MINUS_ASSIGNMENT);
+            TOKEN_CASE2('*', '=', TOKEN_STAR, TOKEN_STAR_ASSIGNMENT);
+            TOKEN_CASE2('\\', '=', TOKEN_SLASH, TOKEN_SLASH_ASSIGNMENT);
+            TOKEN_CASE2('%', '=', TOKEN_PERCENT, TOKEN_PERCENT_ASSIGNMENT);
+            TOKEN_CASE2('=', '=', TOKEN_EQUAL, TOKEN_DOUBLE_EQUALS);
+            
+            TOKEN_CASE2('|', '|', TOKEN_LOGICAL_OR, TOKEN_BITWISE_OR);
+            TOKEN_CASE2('&', '&', TOKEN_LOGICAL_AND, TOKEN_BITWISE_AND);
+            TOKEN_CASE1('^', TOKEN_BITWISE_XOR);
+            TOKEN_CASE3('<', '<', '=', TOKEN_LESS_THAN, TOKEN_BITWISE_LEFT_SHIFT, TOKEN_LEFT_SHIFT_ASSIGNMENT);
+            TOKEN_CASE3('>', '>', '=', TOKEN_GREATER_THAN, TOKEN_BITWISE_RIGHT_SHIFT, TOKEN_RIGHT_SHIFT_ASSIGNMENT);
+            TOKEN_CASE1(',', TOKEN_COMMA);
+            TOKEN_CASE1(';', TOKEN_SEMICOLON);
+            
             default:
             ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
             break;
@@ -367,6 +461,38 @@ void LexerTest(void)
     
     //test_tokens = LexerRun("0xfffffffffffff");
     //old_test_tokens_pointer = test_tokens;
+    
+    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^<<>>,; = == <<=>>=");
+    old_test_tokens_pointer = test_tokens;
+    
+    TokenAssertKind(test_tokens, TOKEN_PLUS);
+    TokenAssertKind(test_tokens, TOKEN_MINUS);
+    TokenAssertKind(test_tokens, TOKEN_STAR);
+    TokenAssertKind(test_tokens, TOKEN_SLASH);
+    TokenAssertKind(test_tokens, TOKEN_PERCENT);
+    TokenAssertKind(test_tokens, TOKEN_PLUS_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_MINUS_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_STAR_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_SLASH_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_PERCENT_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_LESS_THAN);
+    TokenAssertKind(test_tokens, TOKEN_GREATER_THAN);
+    TokenAssertKind(test_tokens, TOKEN_LOGICAL_OR);
+    TokenAssertKind(test_tokens, TOKEN_LOGICAL_AND);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_OR);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_AND);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_XOR);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_LEFT_SHIFT);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_RIGHT_SHIFT);
+    TokenAssertKind(test_tokens, TOKEN_COMMA);
+    TokenAssertKind(test_tokens, TOKEN_SEMICOLON);
+    TokenAssertKind(test_tokens, TOKEN_EQUAL);
+    TokenAssertKind(test_tokens, TOKEN_DOUBLE_EQUALS);
+    TokenAssertKind(test_tokens, TOKEN_LEFT_SHIFT_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_RIGHT_SHIFT_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_EOF);
+    
+    BufferFree(old_test_tokens_pointer);
 }
 
 void BufferTest(void)
