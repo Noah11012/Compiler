@@ -590,6 +590,8 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_BOOL);
     TokenAssertKind(test_tokens, TOKEN_GENERIC);
     TokenAssertKind(test_tokens, TOKEN_ALIGNOF);
+
+    BufferFree(old_test_tokens_pointer);
 }
 
 void BufferTest(void)
