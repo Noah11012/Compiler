@@ -36,6 +36,7 @@ typedef enum
     TOKEN_BITWISE_OR,
     TOKEN_BITWISE_AND,
     TOKEN_BITWISE_XOR,
+    TOKEN_BITWISE_NOT,
     TOKEN_BITWISE_LEFT_SHIFT,
     TOKEN_BITWISE_RIGHT_SHIFT,
     
@@ -44,6 +45,10 @@ typedef enum
     TOKEN_STAR_ASSIGNMENT,
     TOKEN_SLASH_ASSIGNMENT,
     TOKEN_PERCENT_ASSIGNMENT,
+    TOKEN_OR_ASSIGNMENT,
+    TOKEN_AND_ASSIGNMENT,
+    TOKEN_XOR_ASSIGNMENT,
+    TOKEN_NOT_ASSIGNMENT,
     TOKEN_LEFT_SHIFT_ASSIGNMENT,
     TOKEN_RIGHT_SHIFT_ASSIGNMENT,
     
@@ -85,11 +90,12 @@ typedef enum
     TOKEN_EXTERN,
     TOKEN_AUTO,
     TOKEN_CONST,
+    TOKEN_BOOL,
 
     /* C11 Specific */
-    TOKEN_BOOL,
     TOKEN_GENERIC,
     TOKEN_ALIGNOF,
+    TOKEN_NORETURN,
     
     TOKEN_EOF
 } TokenKind;
@@ -132,10 +138,11 @@ static char const *token_string_table[] = {
     [TOKEN_EXTERN] = "extern",
     [TOKEN_AUTO] = "auto",
     [TOKEN_CONST] = "const",
-
     [TOKEN_BOOL] = "_Bool",
+
     [TOKEN_GENERIC] = "_Generic",
     [TOKEN_ALIGNOF] = "_Alignof",
+    [TOKEN_NORETURN] = "_Noreturn",
     
     [TOKEN_EOF] = "End of file"
 };
@@ -154,6 +161,8 @@ typedef struct
         char *string; // Used only when kind == TOKEN_STRING
     };
 } Token;
+
+#include "parse.c"
 
 static int errors_reported = 0;
 static int max_allowed_errors = 20;
@@ -414,9 +423,10 @@ Token *LexerRun(char *lexer)
             TOKEN_CASE2('%', '=', TOKEN_PERCENT, TOKEN_PERCENT_ASSIGNMENT);
             TOKEN_CASE2('=', '=', TOKEN_EQUAL, TOKEN_DOUBLE_EQUALS);
             
-            TOKEN_CASE2('|', '|', TOKEN_LOGICAL_OR, TOKEN_BITWISE_OR);
-            TOKEN_CASE2('&', '&', TOKEN_LOGICAL_AND, TOKEN_BITWISE_AND);
-            TOKEN_CASE1('^', TOKEN_BITWISE_XOR);
+            TOKEN_CASE3('|', '|', '=', TOKEN_LOGICAL_OR, TOKEN_BITWISE_OR, TOKEN_OR_ASSIGNMENT);
+            TOKEN_CASE3('&', '&', '=', TOKEN_LOGICAL_AND, TOKEN_BITWISE_AND, TOKEN_AND_ASSIGNMENT);
+            TOKEN_CASE2('^', '=', TOKEN_BITWISE_XOR, TOKEN_XOR_ASSIGNMENT);
+            TOKEN_CASE2('~', '=', TOKEN_BITWISE_NOT, TOKEN_NOT_ASSIGNMENT);
             TOKEN_CASE3('<', '<', '=', TOKEN_LESS_THAN, TOKEN_BITWISE_LEFT_SHIFT, TOKEN_LEFT_SHIFT_ASSIGNMENT);
             TOKEN_CASE3('>', '>', '=', TOKEN_GREATER_THAN, TOKEN_BITWISE_RIGHT_SHIFT, TOKEN_RIGHT_SHIFT_ASSIGNMENT);
             TOKEN_CASE1(',', TOKEN_COMMA);
@@ -519,7 +529,7 @@ void LexerTest(void)
     //test_tokens = LexerRun("0xfffffffffffff");
     //old_test_tokens_pointer = test_tokens;
     
-    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^<<>>,;:?! = == <<=>>=");
+    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^~<<>>,;:?! = == <<=>>=||=&&=~=");
     old_test_tokens_pointer = test_tokens;
     
     TokenAssertKind(test_tokens, TOKEN_PLUS);
@@ -539,6 +549,7 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_BITWISE_OR);
     TokenAssertKind(test_tokens, TOKEN_BITWISE_AND);
     TokenAssertKind(test_tokens, TOKEN_BITWISE_XOR);
+    TokenAssertKind(test_tokens, TOKEN_BITWISE_NOT);
     TokenAssertKind(test_tokens, TOKEN_BITWISE_LEFT_SHIFT);
     TokenAssertKind(test_tokens, TOKEN_BITWISE_RIGHT_SHIFT);
     TokenAssertKind(test_tokens, TOKEN_COMMA);
@@ -550,14 +561,17 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_DOUBLE_EQUALS);
     TokenAssertKind(test_tokens, TOKEN_LEFT_SHIFT_ASSIGNMENT);
     TokenAssertKind(test_tokens, TOKEN_RIGHT_SHIFT_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_OR_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_AND_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_NOT_ASSIGNMENT);
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
 
     test_tokens = LexerRun("do while for if else switch case break typedef return struct enum union "
                            "char short int long float double signed unsigned "
-                           "auto static extern register inline const "
-                           "sizeof _Bool _Generic _Alignof");
+                           "auto static extern register restrict inline const "
+                           "sizeof _Bool _Generic _Alignof _Noreturn");
     old_test_tokens_pointer = test_tokens;
     TokenAssertKind(test_tokens, TOKEN_DO);
     TokenAssertKind(test_tokens, TOKEN_WHILE);
@@ -584,12 +598,14 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_STATIC);
     TokenAssertKind(test_tokens, TOKEN_EXTERN);
     TokenAssertKind(test_tokens, TOKEN_REGISTER);
+    TokenAssertKind(test_tokens, TOKEN_RESTRICT);
     TokenAssertKind(test_tokens, TOKEN_INLINE);
     TokenAssertKind(test_tokens, TOKEN_CONST);
     TokenAssertKind(test_tokens, TOKEN_SIZEOF);
     TokenAssertKind(test_tokens, TOKEN_BOOL);
     TokenAssertKind(test_tokens, TOKEN_GENERIC);
     TokenAssertKind(test_tokens, TOKEN_ALIGNOF);
+    TokenAssertKind(test_tokens, TOKEN_NORETURN);
 
     BufferFree(old_test_tokens_pointer);
 }
@@ -616,8 +632,20 @@ void BufferTest(void)
     BufferFree(numbers);
 }
 
+#define ParseAssert(expression) list_of_tokens = LexerRun(#expression);
+
+void ParserTest(void)
+{
+    Token *list_of_tokens = LexerRun("10");
+    Expression *test_expression = ParseExpression(&list_of_tokens);
+    PrettyPrintExpression(test_expression);
+
+    int result;
+}
+
 int main(void)    
 {
     BufferTest();
     LexerTest();
+    ParserTest();
 }
