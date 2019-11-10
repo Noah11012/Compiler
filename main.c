@@ -30,8 +30,16 @@ typedef enum
     TOKEN_LESS_THAN,
     TOKEN_GREATER_THAN,
     
+    TOKEN_LEFT_PAREN,
+    TOKEN_RIGHT_PAREN,
+    TOKEN_LEFT_BRACE,
+    TOKEN_RIGHT_BRACE,
+    TOKEN_LEFT_BRACKET,
+    TOKEN_RIGHT_BRACKET,
+
     TOKEN_LOGICAL_OR,
     TOKEN_LOGICAL_AND,
+
     
     TOKEN_BITWISE_OR,
     TOKEN_BITWISE_AND,
@@ -434,6 +442,12 @@ Token *LexerRun(char *lexer)
             TOKEN_CASE1(';', TOKEN_SEMICOLON);
             TOKEN_CASE1('?', TOKEN_QUESTION_MARK);
             TOKEN_CASE1('!', TOKEN_EXCLAMATION_POINT);
+            TOKEN_CASE1('(', TOKEN_LEFT_PAREN);
+            TOKEN_CASE1(')', TOKEN_RIGHT_PAREN);
+            TOKEN_CASE1('{', TOKEN_LEFT_BRACE);
+            TOKEN_CASE1('}', TOKEN_RIGHT_BRACE);
+            TOKEN_CASE1('[', TOKEN_LEFT_BRACKET);
+            TOKEN_CASE1(']', TOKEN_RIGHT_BRACKET);
             
             default:
             ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
@@ -529,7 +543,7 @@ void LexerTest(void)
     //test_tokens = LexerRun("0xfffffffffffff");
     //old_test_tokens_pointer = test_tokens;
     
-    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^~<<>>,;:?! = == <<=>>=||=&&=~=");
+    test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^~<<>>,;:?! = == <<=>>=||=&&=~= (){}[]");
     old_test_tokens_pointer = test_tokens;
     
     TokenAssertKind(test_tokens, TOKEN_PLUS);
@@ -564,6 +578,12 @@ void LexerTest(void)
     TokenAssertKind(test_tokens, TOKEN_OR_ASSIGNMENT);
     TokenAssertKind(test_tokens, TOKEN_AND_ASSIGNMENT);
     TokenAssertKind(test_tokens, TOKEN_NOT_ASSIGNMENT);
+    TokenAssertKind(test_tokens, TOKEN_LEFT_PAREN);
+    TokenAssertKind(test_tokens, TOKEN_RIGHT_PAREN);
+    TokenAssertKind(test_tokens, TOKEN_LEFT_BRACE);
+    TokenAssertKind(test_tokens, TOKEN_RIGHT_BRACE);
+    TokenAssertKind(test_tokens, TOKEN_LEFT_BRACKET);
+    TokenAssertKind(test_tokens, TOKEN_RIGHT_BRACKET);
     TokenAssertKind(test_tokens, TOKEN_EOF);
     
     BufferFree(old_test_tokens_pointer);
