@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
 #include <limits.h>
@@ -11,6 +12,7 @@
 { fprintf(stderr, "Assertion failed!\nCondtion: %s\nFile: %s\nLine:%d\n", #condition, __FILE__, __LINE__); } 0\
 
 #include "buffer.c"
+#include "map.c"
 
 /* Token Types */
 typedef enum
@@ -170,10 +172,9 @@ typedef struct
     };
 } Token;
 
-#include "parse.c"
-
 static int errors_reported = 0;
 static int max_allowed_errors = 20;
+static bool had_error = false;
 
 /* Our basic way of reporting errors */
 void ReportError(char const *format, ...)
@@ -190,7 +191,10 @@ void ReportError(char const *format, ...)
     va_end(argument_list);
     
     errors_reported++;
+    had_error = true;
 }
+
+#include "parse.c"
 
 #define TOKEN_CASE1(ch, token_kind) \
 case ch: \
@@ -301,6 +305,7 @@ Token *LexerRun(char *lexer)
                         ReportError("Invalid digit in base!\nBase = %u\n", base);
                     }
                     
+                    // Not sure if this works yet...
                     if(result >= ((UINT_MAX - digit) / base))
                     {
                         ReportError("Integer overflow!\n");
@@ -663,9 +668,15 @@ void ParserTest(void)
     int result;
 }
 
+void MapTest(void)
+{
+
+}
+
 int main(void)    
 {
     BufferTest();
     LexerTest();
     ParserTest();
+    MapTest();
 }
