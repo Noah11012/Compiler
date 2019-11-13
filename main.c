@@ -657,20 +657,14 @@ void BufferTest(void)
     BufferFree(numbers);
 }
 
-#define ParseAssert(expression) list_of_tokens = LexerRun(#expression);
-
 void ParserTest(void)
 {
-    Token *list_of_tokens = LexerRun("10");
-    Expression *test_expression = ParseExpression(&list_of_tokens);
-    PrettyPrintExpression(test_expression);
-
-    int result;
+    // Get around to parsing...
 }
 
 void MapTest(void)
 {
-
+    // When mapping is done, do the tests here...
 }
 
 int main(void)    
