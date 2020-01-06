@@ -8,11 +8,10 @@
 #include <ctype.h>
 
 /* Assert macro */
-#define Assert(condition) if((condition) == false) \
-{ fprintf(stderr, "Assertion failed!\nCondtion: %s\nFile: %s\nLine:%d\n", #condition, __FILE__, __LINE__); } 0\
+#define Assert(condition) \
+    if((condition) == false) fprintf(stderr, "Assertion failed!\nFile: %s\nLine: %d\n", __FILE__, __LINE__);
 
 #include "buffer.c"
-#include "map.c"
 
 /* Token Types */
 typedef enum
@@ -157,12 +156,19 @@ static char const *token_string_table[] = {
     [TOKEN_EOF] = "End of file"
 };
 
+typedef enum
+{
+    ERROR_NONE,
+    ERROR_INTEGER_OVERFLOW
+} ErrorKind;
+
 /* Holds all the information about a token */
 typedef struct
 {
     TokenKind kind;
     int line;
     int column;
+    ErrorKind error;
     
     union
     {
@@ -302,13 +308,12 @@ Token *LexerRun(char *lexer)
                     
                     if(digit > base)
                     {
-                        ReportError("Invalid digit in base!\nBase = %u\n", base);
+                        Assert(false)
                     }
                     
-                    // Not sure if this works yet...
                     if(result >= ((UINT_MAX - digit) / base))
                     {
-                        ReportError("Integer overflow!\n");
+                        current_token.error = ERROR_INTEGER_OVERFLOW;
                     }
                     
                     result *= base;
@@ -455,7 +460,7 @@ Token *LexerRun(char *lexer)
             TOKEN_CASE1(']', TOKEN_RIGHT_BRACKET);
             
             default:
-            ReportError("[%d : %d] Unrecognized character '%c'\n", current_line, current_column, c);
+            Assert(false);
             break;
         }
         
@@ -491,8 +496,12 @@ Assert(strncmp(tokens->string, string_value, strlen(tokens->string)) == 0); toke
 #define TokenAssertKind(tokens, token_kind) \
 Assert(tokens->kind == token_kind); tokens++ \
 
+#define TokenAssertError(tokens, error_kind) \
+Assert(tokens->error = error_kind); tokens++ \
+
 void LexerTest(void)
 {
+    // TODO: make all of this junk better with a proper testing framework
     Token *old_test_tokens_pointer;
     Token *test_tokens = LexerRun("1 2 3 10 20 30");
     old_test_tokens_pointer = test_tokens;
@@ -545,8 +554,12 @@ void LexerTest(void)
     
     BufferFree(old_test_tokens_pointer);
     
-    //test_tokens = LexerRun("0xfffffffffffff");
-    //old_test_tokens_pointer = test_tokens;
+    test_tokens = LexerRun("0xfffffffffffff");
+    old_test_tokens_pointer = test_tokens;
+
+    TokenAssertError(test_tokens, ERROR_INTEGER_OVERFLOW);
+
+    BufferFree(old_test_tokens_pointer);
     
     test_tokens = LexerRun("+-*\\% +=-=*=\\=%= <> |& ||&&^~<<>>,;:?! = == <<=>>=||=&&=~= (){}[]");
     old_test_tokens_pointer = test_tokens;
