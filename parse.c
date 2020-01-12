@@ -2,10 +2,23 @@
 
 typedef enum
 {
+    EXPRESSION_NONE,
     EXPRESSION_NUMBER,
     EXPRESSION_UNARY,
     EXPRESSION_BINARY
 } ExpressionKind;
+
+static char *expression_kind_string_table[] = {
+    [EXPRESSION_NONE] = "None",
+    [EXPRESSION_NUMBER] = "Number",
+    [EXPRESSION_UNARY] = "Unary",
+    [EXPRESSION_BINARY] = "Binary"
+};
+
+static char token_operator_string_table[] = {
+    [TOKEN_PLUS] = '+',
+    [TOKEN_MINUS] = '-'
+};
 
 typedef struct Expression
 {
@@ -14,26 +27,54 @@ typedef struct Expression
 
     union
     {
-        int number_expression;
-        struct Expression *unary_expression;
+        int number;
+        struct Expression *unary;
 
         struct
         {
-            struct Expression *left_expression;
-            struct Expression *right_expression;
+            struct Expression *left;
+            struct Expression *right;
         };
     };
 } Expression;
 
-bool MatchToken(Token **tokens, TokenKind kind, Token *matched_on_token)
+static Token global_token;
+
+bool MatchToken(Token **tokens, TokenKind kind)
 {
     if((*tokens)->kind == kind)
     {
-        if(matched_on_token) *matched_on_token = *((*tokens)++);
+        global_token = *((*tokens)++);
         return true;
     }
 
     return false;
+}
+
+bool MatchMultipleTokens(Token **tokens, TokenKind *kinds, int count)
+{
+    bool result;
+    int i = 0;
+    while(i < count)
+    {
+        result = MatchToken(tokens, kinds[i]);
+        if(!result)
+        {
+            break;
+        }
+
+        i++;
+    }
+
+    return result;
+}
+
+void DemandToken(Token **tokens, TokenKind kind)
+{
+    if(!MatchToken(tokens, kind))
+    {
+        Assert(0);
+    }
 }
 
 Expression *CreateExpression(ExpressionKind kind)
@@ -47,7 +88,7 @@ Expression *CreateExpression(ExpressionKind kind)
 Expression *CreateNumberExpression(int number)
 {
     Expression *expression = CreateExpression(EXPRESSION_NUMBER);
-    expression->number_expression = number;
+    expression->number = number;
 
     return expression;
 }
@@ -56,7 +97,7 @@ Expression *CreateUnaryExpression(Expression *other_expression, TokenKind operat
 {
     Expression *expression = CreateExpression(EXPRESSION_UNARY);
     expression->operator = operator;
-    expression->unary_expression = other_expression;
+    expression->unary = other_expression;
 
     return expression;
 }
@@ -65,85 +106,74 @@ Expression *CreateBinaryExpression(Expression *left_expression, Expression *righ
 {
     Expression *expression = CreateExpression(EXPRESSION_BINARY);
     expression->operator = operator;
-    expression->left_expression = left_expression;
-    expression->right_expression = right_expression;
+    expression->left = left_expression;
+    expression->right = right_expression;
 
     return expression;
 }
 
-int EvaluateExpression(Expression *expression)
+Expression *ParseNumber(Token **tokens)
 {
-    int result;
-    switch(expression->kind)
-    {
-        case EXPRESSION_NUMBER:
-            result = expression->number_expression;
-            break;
-        case EXPRESSION_UNARY:
-        {
-            int evaluated_expression = EvaluateExpression(expression->unary_expression);
-            switch(expression->operator)
-            {
-                case TOKEN_MINUS:
-                    evaluated_expression = -evaluated_expression;
-                    break;
-                default:
-                    break;
-            }
-            result = evaluated_expression;
-        }
-        break;
+    Expression *expression = NULL;
 
-        default:
-            break;
-    }
+    DemandToken(tokens, TOKEN_NUMBER);
 
-    return result;
+    expression = CreateNumberExpression(global_token.number);
+
+    return expression;
 }
 
-Expression *ParseExpression(Token **tokens)
+Expression *ParseAdditionAndSubtraction(Token **tokens)
 {
-    Expression expression;
     Expression *result;
-    Token token_number;
-    if(MatchToken(tokens, TOKEN_MINUS, NULL))
-    {
-        expression.operator = TOKEN_MINUS;
-        (*tokens)++;
-        return ParseExpression(tokens);
-    }
+    Expression *number1 = ParseNumber(tokens);
 
-    if(MatchToken(tokens, TOKEN_NUMBER, &token_number))
+    while(MatchToken(tokens, TOKEN_PLUS))
     {
-        result = CreateNumberExpression(token_number.number);
+        result = CreateBinaryExpression(number1, ParseNumber(tokens), TOKEN_PLUS);
     }
 
     return result;
 }
 
-void PrettyPrintExpression(Expression *expression)
+char *FormatString(char const *format, ...)
 {
-    printf("( ");
+    char *result;
+
+    va_list list;
+    va_start(list, format);
+    int size = vsnprintf(NULL, 0, format, list);
+    result = malloc(size + 1);
+    Assert(result);
+    vsnprintf(result, size + 1, format, list);
+    va_end(list);
+
+    return result;
+}
+
+char *StringifyExpression(Expression *expression)
+{
+    StringBuilder expression_builder = CreateStringBuilder();
+
     switch(expression->kind)
     {
+        case EXPRESSION_NONE:
+            break;
         case EXPRESSION_NUMBER:
-            printf("%d ", expression->number_expression);
+            PushToStringBuilder(&expression_builder, "%d", expression->number);
             break;
         case EXPRESSION_UNARY:
-            switch(expression->operator)
-            {
-                case TOKEN_MINUS:
-                    printf("- ");
-                    break;
-                default:
-                    break;
-            }
-            PrettyPrintExpression(expression->unary_expression);
+            PushToStringBuilder(&expression_builder, "(%c %s)",
+                    token_operator_string_table[expression->operator],
+                    StringifyExpression(expression->unary));
             break;
-
-        default:
+        case EXPRESSION_BINARY:
+            PushToStringBuilder(&expression_builder, "(%c %s %s)",
+                    token_operator_string_table[expression->operator],
+                    StringifyExpression(expression->left),
+                    StringifyExpression(expression->right));
             break;
     }
 
-    printf(")");
+    return FinalizeStringBuilder(&expression_builder);
 }

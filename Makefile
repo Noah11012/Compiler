@@ -1,2 +1,2 @@
 all: main.c
-	clang main.c -g -O0 -std=c11 -Wall -Wextra -Wpedantic
+	clang main.c -g -O3 -std=c11 -Wall -Wextra -Wpedantic

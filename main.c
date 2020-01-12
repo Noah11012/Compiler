@@ -12,6 +12,7 @@
     if((condition) == false) fprintf(stderr, "Assertion failed!\nFile: %s\nLine: %d\n", __FILE__, __LINE__);
 
 #include "buffer.c"
+#include "string_builder.c"
 
 /* Token Types */
 typedef enum
@@ -108,6 +109,12 @@ typedef enum
     
     TOKEN_EOF
 } TokenKind;
+
+typedef enum
+{
+    TOKEN_KEYWORD_BEGIN = TOKEN_IF,
+    TOKEN_KEYWORD_END = TOKEN_NORETURN + 1
+} TokenKindMeta;
 
 /* Used for error reporting mainly. Allows for easy conversion from TokenKind to string */
 static char const *token_string_table[] = {
@@ -393,9 +400,9 @@ Token *LexerRun(char *lexer)
                 current_token.name[index] = 0;
                 current_token.kind = TOKEN_IDENTIFIER;
                 
-                int token_kind = TOKEN_IF;
+                int token_kind = TOKEN_KEYWORD_BEGIN;
                 bool found_keyword = false;
-                while((token_kind < TOKEN_EOF) && !found_keyword)
+                while((token_kind < TOKEN_KEYWORD_END) && !found_keyword)
                 {
                     if(strncmp(current_token.name, token_string_table[token_kind], strlen(current_token.name)) == 0)
                     {
@@ -423,7 +430,8 @@ Token *LexerRun(char *lexer)
                 
                 int new_string_length = (int)(end - start);
                 char *new_string = malloc(new_string_length + 1);
-                strncpy(new_string, start, new_string_length);
+                memcpy(new_string, start, new_string_length);
+                new_string[new_string_length] = 0;
                 
                 current_token.string = new_string;
                 current_token.kind = TOKEN_STRING;
@@ -672,12 +680,14 @@ void BufferTest(void)
 
 void ParserTest(void)
 {
-    // Get around to parsing...
-}
+    // char *test_expression_string = "2 + 2";
+    // Token *tokens = LexerRun(test_expression_string);
+    // Expression *expression = ParseNumber(&tokens);
 
-void MapTest(void)
-{
-    // When mapping is done, do the tests here...
+    Expression *test_stringify_expression;
+    memset(&test_stringify_expression, 0, sizeof test_stringify_expression);
+    test_stringify_expression = CreateBinaryExpression(CreateBinaryExpression(CreateNumberExpression(2), CreateNumberExpression(2), TOKEN_PLUS), CreateNumberExpression(2), TOKEN_MINUS);
+    printf("expression = %s\n", StringifyExpression(test_stringify_expression));
 }
 
 int main(void)    
@@ -685,5 +695,4 @@ int main(void)
     BufferTest();
     LexerTest();
     ParserTest();
-    MapTest();
 }
